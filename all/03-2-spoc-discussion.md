@@ -94,9 +94,115 @@ Virtual Address 7268:
       --> Translates to Physical Address 0xca8 --> Value: 16
 ```
 
+通过编写程序，得到的结果如下：
 
+```
+
+Virtual Address 0x6c74:
+  --> pde index: 0x1b pde contents: (valid 0x1, pfn 0x20)
+    --> pte index: 0x3 pte contents: (valid 0x1, pfn 0x61)
+      --> Translated to Physical Address 0xc34 --> Value: 0x6
+Virtual Address 0x6b22:
+  --> pde index: 0x1a pde contents: (valid 0x1, pfn 0x52)
+    --> pte index: 0x19 pte contents: (valid 0x1, pfn 0x47)
+      --> Translated to Physical Address 0x8e2 --> Value: 0x1a
+Virtual Address 0x3df:
+  --> pde index: 0x0 pde contents: (valid 0x1, pfn 0x5a)
+    --> pte index: 0x1e pte contents: (valid 0x1, pfn 0x5)
+      --> Translated to Physical Address 0xbf --> Value: 0xf
+Virtual Address 0x69dc:
+  --> pde index: 0x1a pde contents: (valid 0x1, pfn 0x52)
+    --> pte index: 0xe pte contents: (valid 0x0, pfn 0x7f)
+      --> Fault (page table entry not valid)
+Virtual Address 0x317a:
+  --> pde index: 0xc pde contents: (valid 0x1, pfn 0x18)
+    --> pte index: 0xb pte contents: (valid 0x1, pfn 0x35)
+      --> Translated to Physical Address 0x6ba --> Value: 0x1e
+Virtual Address 0x4546:
+  --> pde index: 0x11 pde contents: (valid 0x1, pfn 0x21)
+    --> pte index: 0xa pte contents: (valid 0x0, pfn 0x7f)
+      --> Fault (page table entry not valid)
+Virtual Address 0x2c03:
+  --> pde index: 0xb pde contents: (valid 0x1, pfn 0x44)
+    --> pte index: 0x0 pte contents: (valid 0x1, pfn 0x57)
+      --> Translated to Physical Address 0xae3 --> Value: 0x16
+Virtual Address 0x7fd7:
+  --> pde index: 0x1f pde contents: (valid 0x1, pfn 0x12)
+    --> pte index: 0x1e pte contents: (valid 0x0, pfn 0x7f)
+      --> Fault (page table entry not valid)
+Virtual Address 0x390e:
+  --> pde index: 0xe pde contents: (valid 0x0, pfn 0x7f)
+    --> Fault (page directory entry not valid)
+Virtual Address 0x748b:
+  --> pde index: 0x1d pde contents: (valid 0x1, pfn 0x0)
+    --> pte index: 0x4 pte contents: (valid 0x0, pfn 0x7f)
+      --> Fault (page table entry not valid)
+```
 
 （3）请基于你对原理课二级页表的理解，并参考Lab2建页表的过程，设计一个应用程序（可基于python, ruby, C, C++，LISP等）可模拟实现(2)题中描述的抽象OS，可正确完成二级页表转换。
+
+
+编写的程序如下：(需要的地址在q.txt,初始的内存分布在mem.in中)
+
+
+```
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+# @Author: largelyfs
+# @Date:   2015-03-19 21:29:46
+# @Last Modified by:   largelymfs
+# @Last Modified time: 2015-03-19 22:09:29
+
+def change(l):
+  return [int(i, 16) for i in l]
+def getIndex(a, base, index):
+  return a[base +index]
+PDE_BASE = 0x220
+
+def SetUp(filename):
+  mem = []
+  with open(filename) as f:
+    for l in f:
+      words = change(l.strip().split(':')[1].strip().split())
+      for item in words:
+        mem.append(item)
+  return mem
+
+def convert(v, mem):
+  print 'Virtual Address 0x%x:' %v
+
+  pdeInd = (v & 0x7c00) >> 10
+  pteInd = (v & 0x3e0) >> 5
+  objInd = v & 0x1f
+
+  pde = getIndex(mem, PDE_BASE, pdeInd)
+  valid = pde >> 7
+  pteBase = pde & 0x7f
+  print '\t--> pde index: 0x%x pde contents: (valid 0x%x, pfn 0x%x)' % (pdeInd, valid, pteBase)
+
+  if not valid:
+    print '\t\t--> Fault (page directory entry not valid)'
+    return
+  pte = getIndex(mem, pteBase << 5, pteInd)
+  pteValid = pte >> 7
+  objBase = pte & 0x7f
+  print '\t\t--> pte index: 0x%x pte contents: (valid 0x%x, pfn 0x%x)' % (pteInd, pteValid, objBase)
+  if not pteValid:
+    print '\t\t\t--> Fault (page table entry not valid)'
+    return
+  obj = getIndex(mem, objBase << 5, objInd)
+  print '\t\t\t--> Translated to Physical Address 0x%x --> Value: 0x%x' % ((objBase << 5) + objInd, obj)
+
+
+def check(mem):
+  with open("q.txt") as q:
+    for l in q:
+      convert(int(l.strip().split()[-1], 16), mem)
+
+if __name__ == '__main__':
+  mem = SetUp("mem.in")
+  check(mem)
+```
 
 
 （4）假设你有一台支持[反置页表](http://en.wikipedia.org/wiki/Page_table#Inverted_page_table)的机器，请问你如何设计操作系统支持这种类型计算机？请给出设计方案。
