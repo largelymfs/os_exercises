@@ -166,6 +166,98 @@ Virtual Address 1e6f(0 001_11 10_011 0_1111):
       --> To Disk Sector Address 0x2cf(0001011001111) --> Value: 1c
 ```
 
+对于这道题，我设计了下面的代码来解决这个问题:
+
+```
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+# @Author: largelyfs
+# @Date:   2015-03-19 21:29:46
+# @Last Modified by:   largelymfs
+# @Last Modified time: 2015-03-26 21:44:32
+
+def change(l):
+  return [int(i, 16) for i in l]
+def getIndex(a, base, index):
+  return a[base +index]
+PDE_BASE = 0xd80
+
+def SetUp(filename):
+  mem = []
+  with open(filename) as f:
+    for l in f:
+      words = change(l.strip().split(':')[1].strip().split())
+      for item in words:
+        mem.append(item)
+  return mem
+
+def convert(v, mem):
+  print 'Virtual Address 0x%x:' %v
+
+  pdeInd = (v & 0x7c00) >> 10
+  pteInd = (v & 0x3e0) >> 5
+  objInd = v & 0x1f
+
+  pde = getIndex(mem, PDE_BASE, pdeInd)
+  valid = pde >> 7
+  pteBase = pde & 0x7f
+  print '\t--> pde index: 0x%x pde contents: (valid 0x%x, pfn 0x%x)' % (pdeInd, valid, pteBase)
+
+  if not valid:
+    print '\t\t--> Fault (page directory entry not valid)'
+    return
+  pte = getIndex(mem, pteBase << 5, pteInd)
+  pteValid = pte >> 7
+  objBase = pte & 0x7f
+  print '\t\t--> pte index: 0x%x pte contents: (valid 0x%x, pfn 0x%x)' % (pteInd, pteValid, objBase)
+  if not pteValid:
+    if objBase != 0x7f:
+      obj = getIndex(disk, objBase << 5, objInd)
+      print '\t\t\t--> Translated to Disk Address 0x%x --> Value 0x%x' % ((objBase << 5) + objInd, obj)
+    else:
+      print '\t\t\t--> Fault (page table entry not valid)'
+    return
+
+  obj = getIndex(mem, objBase << 5, objInd)
+  print '\t\t\t--> Translated to Physical Address 0x%x --> Value: 0x%x' % ((objBase << 5) + objInd, obj)
+
+
+def check(mem):
+  with open("q.txt") as q:
+    for l in q:
+      convert(int(l.strip().split()[-1], 16), mem)
+
+if __name__ == '__main__':
+  mem = SetUp("mem.in")
+  disk = SetUp("disk.in")
+  check(mem)
+```
+
+这段代码主要是从上一次作业进行改进，在二级页表中发现不可行的时候从硬盘中读取。
+
+执行的结果是:
+
+```
+Virtual Address 0x6653:
+  --> pde index: 0x19 pde contents: (valid 0x0, pfn 0x7f)
+    --> Fault (page directory entry not valid)
+Virtual Address 0x1c13:
+  --> pde index: 0x7 pde contents: (valid 0x1, pfn 0x3d)
+    --> pte index: 0x0 pte contents: (valid 0x1, pfn 0x76)
+      --> Translated to Physical Address 0xed3 --> Value: 0x12
+Virtual Address 0x6890:
+  --> pde index: 0x1a pde contents: (valid 0x0, pfn 0x7f)
+    --> Fault (page directory entry not valid)
+Virtual Address 0xaf6:
+  --> pde index: 0x2 pde contents: (valid 0x1, pfn 0x21)
+    --> pte index: 0x17 pte contents: (valid 0x0, pfn 0x7f)
+      --> Fault (page table entry not valid)
+Virtual Address 0x1e6f:
+  --> pde index: 0x7 pde contents: (valid 0x1, pfn 0x3d)
+    --> pte index: 0x13 pte contents: (valid 0x0, pfn 0x16)
+      --> Translated to Disk Address 0x2cf --> Value 0x1c
+```
+
 ## 扩展思考题
 ---
 (1)请分析原理课的缺页异常的处理流程与lab3中的缺页异常的处理流程（分析粒度到函数级别）的异同之处。
