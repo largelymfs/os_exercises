@@ -45,6 +45,7 @@
  我设计的程序是关于`工作集页置换算法`，具体的程序如下：
 
  ```
+ 
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # @Author: largelymfs
@@ -96,7 +97,8 @@ if __name__=="__main__":
 	init_state = [('e', -2),('d', -1), ('a', 0)]
 	w = WorkSetAllocator()
 	w.init_alloc(init_state, window_size, visit_seq)
- ```
+
+```
 
  对应的输出为：
 
